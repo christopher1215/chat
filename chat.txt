@@ -1,0 +1,167 @@
+聊天项目
+
+一，实现类似于微信的即时通讯
+1.微信有自己的即时通讯协议，不是通信协议。
+2.XMPP通讯协议在国内用的公司挺多，XMPP，别人已经封装好了，对于公司来说，可以节省时间成本。
+环信，环信是仿照XMPP实现的。环信也是可以用于即时通讯。使用环信，不需要自己搭建服务器。
+3.服务器使用Openfire
+4.数据库使用MySQL
+5.客户端使用XMPPFramework
+
+
+二，学习XMPP iOS框架
+1.下载框架，地址：xmpp.org
+ 下载时下载release版本
+
+2.框架结构：
+1）Authentication 授权登录相关。
+2）Categories 分类。
+3）Core 核心，跟服务器交互的类，主要在Core文件夹里。
+4）Extensions 扩展模块 “默认在扩展模块里的功能都是不工作的”。
+ 提供数据缓存的模块，但是没有开启。
+5）Utilities（tool） 工具类。
+6）Vendor 供应商，对于XMPP框架来说，它需要使用第三方框架。
+ －CocoaAsyncSocket socket框架。
+ －CocoaLumberjack 第三方的日志输入框架，CZLog（@“XX”），此日志框架，可以在控制台看到颜色的输出。
+ －KissXML 解析XML数据，可以修改XML数据。
+   NSXmlParse 只能解析，不能修改XML数据。
+7）XCode 示例程序。
+
+三，分析示例程序登录过程
+
+四，XMPP核心文件：
+1）XMPPStream：开发过程中最主要交互的类，所有扩展和自定义代码均要基于此类进行。
+2）XMPPParser：供XMPPStream解析使用。
+3）XMPPJID：提供了一个不可变JID的实现，遵守NSCopying协议和NSCoding协议。
+4）XMPPElement：以下三个XMPP元素的基类。
+ XMPPIQ：请求。
+ XMPPMessage：消息。
+ XMPPPresence：出席。
+5）XMPPModule：开发XMPP扩展时使用。
+6）XMPPLogging：XMPP的日志框架。
+7）XMPPInternal：整个XMPP框架内部使用的核心和高级底层内容。
+
+五，项目导入XMPP框架并完成登录过程
+1.项目导入XMPP框架。
+
+六，进入微信项目
+－微信项目时ipad和iphone共用。
+－微信登录用手机号码 QQ号码
+－微信项目主要让大家学习即时通讯XMPP框架的使用
+1.登录界面
+/*
+用户登录流程
+ 
+1）初始化XMPPStream
+2）连接服务器，传递一个JID
+3）连接成功，接着就发送密码
+4）默认登录成功不“在线”，需要发送一个“在线”消息给服务器，可以通知其他用户你“在线”
+*/
+
+2.登录需求
+1）登录成功要给用户一个友好提示
+2）如果用户登录过，重新启动应用程序，应用要到主界面
+-登录成功的时候，保存用户登录信息
+-didFinishLaunchingWithOptions方法判断用户是否登录，如果登录，直接切换到主界面
+-单例模式保存登录用户信息
+3) 再次登录过程中，若出现以下错误，说明已经存在一个与服务器的连接。解决办法是把以前的连接断开。
+"Error Domain=XMPPStreamErrorDomain Code=1 "Attempting to connect while already connected or connecting." UserInfo=0x7f9199cc5460 {NSLocalizedDescription=Attempting to connect while already connected or connecting.}"
+
+3.注销
+1)回到登录界面
+2)自动登录
+
+4.注册
+
+－日志需要自定义
+ 不再使用NSLog
+
+5.电子名片(vCard)（个人信息）
+－如何获取个人信息
+－如何修改个人信息
+－XMPP中电子名片的使用
+ 1）Extensions/XEP－0054提供了一种机制，可以通过XMPP发送电子名片
+ 2）要使用个人名片首先需要在XMPPFramework.h中启用电子名片的扩展头文件：
+ 	＃import “XMPPvCardCoreDataStorage.h”
+ 	＃import “XMPPvCardTempModule.h”
+ 3）定义属性及成员变量
+ 4）为XMPPStream添加电子名片扩展
+ 5）在需要时使用电子名片
+－电子名片模块，内部实现的功能：
+1）发送请求从服务器获取电子名片（个人信息）数据
+2）接收到服务器返回的“电子名片”数据后，把数据缓存到本地数据库(通过CoreData保存数据)
+
+-使用XMPP电子名片模块：
+ //添加“电子名片”模块
+ //1.添加“电子名片”模块
+ _vCardStorage = [XMPPvCardCoreDataStorage sharedInstance];
+ _vCard = [[XMPPvCardTempModule alloc]initWithvCardStorage:_vCardStorage];
+ //2.激活“电子名片”模块
+ [_vCard activate:_xmppStream];
+
+-打开XMPP的日志：
+1）XMPP/Core/XMPPLogging.h中
+ #define XMPP_LOGGING_ENABLED 1
+2）需要配置XMPP日志的启动
+ #import "DDTTYLogger.h"
+ #import "DDLog.h"
+ 在didFinishLaunchingWithOptions中添加：[DDLog addLogger:[DDTTYLogger sharedInstance]];
+
+－为什么电子名片模型是temp？
+因为解析电子名片的xml没有完善，有些节点并未解析，例如，“电话”节点。
+
+-Openfire的功能有很多是不符合开发需求的，需要对Openfire二次开发，
+ Openfire是基于Java开发的，Openfire是可以获取源代码的，每开发一个功能，打包成一个插件（.jar)
+
+/////////////////////////////////////////////////////////
+－BUG
+- (IBAction)saveBtnClick:(id)sender {
+    //1.把cell的detailTextLabel的值修改
+    self.cell.detailTextLabel.text = self.textField.text;
+    
+    //处理第一次修改个人信息，点击保存之后在个人信息页面无显示这个BUG
+    [self.cell layoutSubviews];
+    
+    //2.当前控制器销毁
+    [self.navigationController popViewControllerAnimated:YES];
+    //3.通知上一个控制器
+    if ([self.delegate respondsToSelector:@selector(editvCardViewController:didFinishedSave:)]) {
+        [self.delegate editvCardViewController:self didFinishedSave:sender];
+    }
+}
+/////////////////////////////////////////////////////////
+
+
+6.通讯录（花名册）（好友列表）
+－如何获取好友列表
+ XMPP框架提供“花名册”模块(Extensions/Roster)
+ 》发送请求，从服务器获取好友列表
+ 》把好友数据保存到本地
+ 》花名册数据库里的好友，如果使用新用户登录，会把以前登录用户的好友删除
+-使用XMPP“花名册”模块：
+》添加模块
+》激活模块
+－好友头像的显示
+－如何添加，删除好友
+
+7.聊天（实时聊天）
+-XMPP框架提供“消息模块”(XEP-0136)
+ 接收到好友的聊天数据后，把数据保存在数据库。
+
+－实现纯文字发送
+－发送文件：图片，语音，文档
+-发送图片：将图片转成NSData，再转成base64字符串，然后发送。
+－接收显示图片：将base64字符串转成NSData，再转成图片。
+
+8.解析XML
+
+9.自动断线连接
+
+10.删除所有XMPP环境
+－脚本
+－sudo ./deleteAll
+
+
+
+
+
